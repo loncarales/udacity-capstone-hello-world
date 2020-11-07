@@ -1,0 +1,16 @@
+{
+  "name": "udacity-capstone-hello-world",
+  "version": "1.0.0",
+  "description": "A sample Node.js app using Express 4",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "repository": "git@github.com:loncarales/udacity-capstone-hello-world.git",
+  "author": "Ales Loncar <ales.loncar@gmail.com>",
+  "license": "MIT",
+  "private": false,
+  "dependencies": {
+    "express": "^4.17.1"
+  }
+}
