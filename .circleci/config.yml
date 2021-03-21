@@ -1,5 +1,12 @@
 version: 2.1
 
+commands:
+  install-nodejs:
+    description: Command used to install nodejs dependencies
+    steps:
+      - run:
+          command: apk add --update npm
+
 parameters:
   image-name:
     type: string
@@ -48,6 +55,7 @@ jobs:
       - checkout
       - setup_remote_docker:
           version: 19.03.13
+      - install-nodejs
       - run:
           name: Build and push Docker image
           command: |
