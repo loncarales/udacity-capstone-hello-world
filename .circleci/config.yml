@@ -88,11 +88,12 @@ jobs:
             curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
             sudo apt-get install -y nodejs
       - run:
-          name: Install awscli
+          name: Install awscli and envsubst
           command: |
             curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
             unzip awscliv2.zip
             sudo ./aws/install
+            sudo pip3 install envsubst
       - run:
           name: Install kubectl
           command: |
@@ -104,7 +105,7 @@ jobs:
           command: |
             aws eks update-kubeconfig --name ${CLUSTER_NAME} --region ${AWS_DEFAULT_REGION}
             echo "Testing k8s configuration"
-            kubectl get svc
+            kubectl cluster-info
             DOCKER_TAG=$(node -p "require('./package.json').version")
             rm -rf .k8s/.generated && mkdir -p .k8s/.generated
             for f in .k8s/templates/dev.yml
