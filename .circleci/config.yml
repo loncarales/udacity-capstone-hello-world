@@ -4,6 +4,9 @@ parameters:
   image-name:
     type: string
     default: "udacity-capstone-hello-world"
+  cluster-name:
+    type: string
+    default: "eks-udacity-capstone-dev-kOJ7"
 
 executors:
   docker:
@@ -27,6 +30,7 @@ workflows:
       - deploy-dev:
           requires:
             - build-push-image
+      #- deploy-staging:
           # filters:
           #   branches:
           #     only:
@@ -75,6 +79,7 @@ jobs:
     executor: python
     environment:
       IMAGE_NAME: << pipeline.parameters.image-name >>
+      CLUSTER_NAME: << pipeline.parameters.cluster-name >>
     steps:
       - checkout
       - run:
