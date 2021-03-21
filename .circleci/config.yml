@@ -1,12 +1,5 @@
 version: 2.1
 
-commands:
-  install-nodejs:
-    description: Command used to install nodejs dependencies
-    steps:
-      - run:
-          command: apk add --update npm
-
 parameters:
   image-name:
     type: string
@@ -19,15 +12,25 @@ executors:
   nodejs:
     docker:
       - image: circleci/node:14.15.0-stretch
+  python:
+    docker:
+      - image: circleci/python:3.9.2
 
 workflows:
   k8s:
     jobs:
+      - lint-dockerfile
       - install
       - build-push-image:
           requires:
             - install
-      - lint-dockerfile
+      - deploy-dev:
+          requires:
+            - build-push-image
+          # filters:
+          #   branches:
+          #     only:
+          #       - master
 
 jobs:
   install:
@@ -55,16 +58,54 @@ jobs:
       - checkout
       - setup_remote_docker:
           version: 19.03.13
-      - install-nodejs
+      - run:
+          command: apk add --update npm
       - run:
           name: Build and push Docker image
           command: |
             docker build -t ${IMAGE_NAME} .
             DOCKER_TAG=$(node -p "require('./package.json').version")
-            echo ${DOCKER_TAG}
             docker tag ${IMAGE_NAME}:latest ${DOCKER_ID}/${IMAGE_NAME}:${DOCKER_TAG}
             docker tag ${DOCKER_ID}/${IMAGE_NAME}:${DOCKER_TAG} ${DOCKER_ID}/${IMAGE_NAME}:latest
             echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_ID} --password-stdin
+            docker push ${DOCKER_ID}/${IMAGE_NAME}:${DOCKER_TAG}
+            docker push ${DOCKER_ID}/${IMAGE_NAME}:latest
+
+  deploy-dev:
+    executor: python
+    environment:
+      IMAGE_NAME: << pipeline.parameters.image-name >>
+    steps:
+      - checkout
+      - run:
+          name: Install NodeJs
+          command: |
+            curl -fsSL https://deb.nodesource.com/setup_lts.x | bash -
+            apt-get install -y nodejs
+      - run:
+          name: Install awscli
+          command: |
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            sudo ./aws/install
+      - run:
+          name: Install kubectl
+          command: |
+            curl -o kubectl https://amazon-eks.s3.us-west-2.amazonaws.com/1.18.9/2020-11-02/bin/linux/amd64/kubectl
+            chmod +x ./kubectl
+            sudo mv ./kubectl /usr/local/bin/kubectl
+      - run:
+          name: Prepare K8S templates
+          command: |
+            aws eks update-kubeconfig --name ${CLUSTER_NAME} --region ${AWS_DEFAULT_REGION}
+            echo "Testing k8s configuration"
+            kubectl get svc
+            DOCKER_TAG=$(node -p "require('./package.json').version")
+            rm -rf .k8s/.generated && mkdir -p .k8s/.generated
+            for f in .k8s/templates/dev.yml
+              do
+              envsubst < $f > ".k8s/.generated/$(basename $f)"
+            done
 
   lint-dockerfile:
     executor: docker
