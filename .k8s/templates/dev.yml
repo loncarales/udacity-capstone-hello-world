@@ -1,20 +1,4 @@
 ---
-kind: Service
-apiVersion: v1
-metadata:
-  name: udacity-capstone-hello-world
-spec:
-  type: LoadBalancer
-  selector:
-    app: udacity-capstone-hello-world
-    environment: dev
-    tier: frontend
-  ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 8080
-
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -42,3 +26,19 @@ spec:
         name: udacity-capstone-hello-world
         ports:
           - containerPort: 8080
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: udacity-capstone-hello-world
+spec:
+  type: LoadBalancer
+  selector:
+    app: udacity-capstone-hello-world
+    environment: dev
+    tier: frontend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
