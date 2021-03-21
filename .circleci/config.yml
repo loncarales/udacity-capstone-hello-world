@@ -112,6 +112,11 @@ jobs:
               do
               envsubst < $f > ".k8s/.generated/$(basename $f)"
             done
+      - run:
+          name: Deploy
+          command: |
+            kubectl apply -f .k8s/.generated/ --validate=true
+            kubectl get pods
 
   lint-dockerfile:
     executor: docker
