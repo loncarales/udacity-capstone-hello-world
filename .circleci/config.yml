@@ -106,13 +106,9 @@ jobs:
             aws eks update-kubeconfig --name ${CLUSTER_NAME} --region ${AWS_DEFAULT_REGION}
             echo "Testing k8s configuration"
             kubectl cluster-info
-            DOCKER_TAG=$(node -p "require('./package.json').version")
+            export DOCKER_TAG=$(node -p "require('./package.json').version")
             rm -rf .k8s/.generated && mkdir -p .k8s/.generated
-            for f in .k8s/templates/dev.yml
-              do
-              envsubst < $f > ".k8s/.generated/$(basename $f)"
-            done
-            cat .k8s/.generated/templates/dev.yaml
+            envsubst < .k8s/templates/dev.yml > .k8s/.generated/dev.yml
             cat .k8s/.generated/dev.yml
       - run:
           name: Deploy
