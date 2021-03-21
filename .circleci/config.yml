@@ -46,8 +46,7 @@ jobs:
       IMAGE_NAME: << pipeline.parameters.image-name >>
     steps:
       - checkout
-      - setup_remote_docker:
-          docker_layer_caching: true
+      - setup_remote_docker
       - run:
           name: Build and push Docker image
           command: |
