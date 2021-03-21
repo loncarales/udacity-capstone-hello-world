@@ -112,6 +112,7 @@ jobs:
               do
               envsubst < $f > ".k8s/.generated/$(basename $f)"
             done
+            cat .k8s/.generated/dev.yaml
       - run:
           name: Deploy
           command: |
