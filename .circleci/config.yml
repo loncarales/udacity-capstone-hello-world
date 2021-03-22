@@ -6,7 +6,7 @@ parameters:
     default: "udacity-capstone-hello-world"
   cluster-name:
     type: string
-    default: "eks-udacity-capstone-dev"
+    default: "eks-udacity-capstone"
 
 executors:
   docker:
@@ -27,19 +27,27 @@ workflows:
       - test:
           requires:
             - install
-      # - build-push-image:
-      #     requires:
-      #       - install
-      # - deploy-dev:
-      #     requires:
-      #       - test
-      #- deploy-staging:
-          # filters:
-          #   branches:
-          #     only:
-          #       - master
+      - deploy-dev:
+          requires:
+            - test
+      - deploy-staging:
+          requires:
+            - deploy-dev
+          filters:
+            branches:
+              only:
+                - master
 
 jobs:
+  lint-dockerfile:
+    executor: docker
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Run hadolint on Dockerfile
+          command: docker run --rm --interactive hadolint/hadolint < Dockerfile
+  
   install:
     executor: nodejs
     steps:
@@ -76,27 +84,6 @@ jobs:
           paths:
             - ~/.cache/yarn
 
-  build-push-image:
-    executor: docker
-    environment:
-      IMAGE_NAME: << pipeline.parameters.image-name >>
-    steps:
-      - checkout
-      - setup_remote_docker:
-          version: 19.03.13
-      - run:
-          command: apk add --update npm
-      - run:
-          name: Build and push Docker image
-          command: |
-            docker build -t ${IMAGE_NAME} .
-            DOCKER_TAG=$(node -p "require('./package.json').version")
-            docker tag ${IMAGE_NAME}:latest ${DOCKER_ID}/${IMAGE_NAME}:${DOCKER_TAG}
-            docker tag ${DOCKER_ID}/${IMAGE_NAME}:${DOCKER_TAG} ${DOCKER_ID}/${IMAGE_NAME}:latest
-            echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_ID} --password-stdin
-            docker push ${DOCKER_ID}/${IMAGE_NAME}:${DOCKER_TAG}
-            docker push ${DOCKER_ID}/${IMAGE_NAME}:latest
-
   deploy-dev:
     executor: python
     environment:
@@ -104,11 +91,14 @@ jobs:
       CLUSTER_NAME: << pipeline.parameters.cluster-name >>
     steps:
       - checkout
+      - setup_remote_docker:
+          version: 19.03.13
       - run:
-          name: Install NodeJs
+          name: Login to repository and build docker image
           command: |
-            curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
-            sudo apt-get install -y nodejs
+            docker build -t ${DOCKER_ID}/${IMAGE_NAME}:${CIRCLE_BRANCH}-${CIRCLE_BUILD_NUM} .
+            echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_ID} --password-stdin
+            docker push ${DOCKER_ID}/${IMAGE_NAME}:${CIRCLE_BRANCH}-${CIRCLE_BUILD_NUM}
       - run:
           name: Install awscli and envsubst
           command: |
@@ -128,21 +118,61 @@ jobs:
             aws eks update-kubeconfig --name ${CLUSTER_NAME} --region ${AWS_DEFAULT_REGION}
             echo "Testing k8s configuration"
             kubectl cluster-info
-            export DOCKER_TAG=$(node -p "require('./package.json').version")
             rm -rf .k8s/.generated && mkdir -p .k8s/.generated
             envsubst < .k8s/templates/dev.yml > .k8s/.generated/dev.yml
-            cat .k8s/.generated/dev.yml
       - run:
           name: Deploy
           command: |
-            kubectl apply -f .k8s/.generated/ --validate=true
-            kubectl get pods
+            kubectl -n dev apply -f .k8s/.generated/ --validate=true
+            kubectl -n dev get pods
 
-  lint-dockerfile:
-    executor: docker
+  deploy-staging:
+    executor: python
+    environment:
+      IMAGE_NAME: << pipeline.parameters.image-name >>
+      CLUSTER_NAME: << pipeline.parameters.cluster-name >>
     steps:
       - checkout
-      - setup_remote_docker
+      - setup_remote_docker:
+          version: 19.03.13
       - run:
-          name: Run hadolint on Dockerfile
-          command: docker run --rm --interactive hadolint/hadolint < Dockerfile
+          name: Install NodeJs
+          command: |
+            curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+            sudo apt-get install -y nodejs
+      - run:
+          name: Login to repository and build docker image
+          command: |
+            IMAGE_TAG=$(node -p "require('./package.json').version")
+            docker build -t ${DOCKER_ID}/${IMAGE_NAME}:${IMAGE_TAG} .
+            docker tag ${DOCKER_ID}/${IMAGE_NAME}:${IMAGE_TAG} ${DOCKER_ID}/${IMAGE_NAME}:latest
+            echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_ID} --password-stdin
+            docker push ${DOCKER_ID}/${IMAGE_NAME}:${IMAGE_TAG}
+            docker push ${DOCKER_ID}/${IMAGE_NAME}:latest
+      - run:
+          name: Install awscli and envsubst
+          command: |
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            sudo ./aws/install
+            sudo pip3 install envsubst
+      - run:
+          name: Install kubectl
+          command: |
+            curl -o kubectl https://amazon-eks.s3.us-west-2.amazonaws.com/1.18.9/2020-11-02/bin/linux/amd64/kubectl
+            chmod +x ./kubectl
+            sudo mv ./kubectl /usr/local/bin/kubectl
+      - run:
+          name: Prepare K8S templates
+          command: |
+            aws eks update-kubeconfig --name ${CLUSTER_NAME} --region ${AWS_DEFAULT_REGION}
+            echo "Testing k8s configuration"
+            kubectl cluster-info
+            export IMAGE_TAG=$(node -p "require('./package.json').version")
+            rm -rf .k8s/.generated && mkdir -p .k8s/.generated
+            envsubst < .k8s/templates/staging.yml > .k8s/.generated/staging.yml
+      - run:
+          name: Deploy
+          command: |
+            kubectl -n staging apply -f .k8s/.generated/ --validate=true
+            kubectl -n staging get pods

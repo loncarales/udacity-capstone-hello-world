@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: dev
+  name: staging
 
 ---
 apiVersion: apps/v1
@@ -13,7 +13,7 @@ metadata:
     environment: dev
     tier: frontend
   name: udacity-capstone-hello-world
-  namespace: dev
+  namespace: staging
 spec:
   replicas: 1
   selector:
@@ -29,7 +29,7 @@ spec:
         tier: frontend
     spec:
       containers:
-      - image: ${DOCKER_ID}/${IMAGE_NAME}:${CIRCLE_BRANCH}-${CIRCLE_BUILD_NUM}
+      - image: ${DOCKER_ID}/${IMAGE_NAME}:${IMAGE_TAG}
         name: udacity-capstone-hello-world
         ports:
           - containerPort: 8080
@@ -43,7 +43,7 @@ metadata:
     environment: dev
     tier: frontend
   name: udacity-capstone-hello-world
-  namespace: dev
+  namespace: staging
 spec:
   type: LoadBalancer
   selector:
