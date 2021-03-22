@@ -1,13 +1,178 @@
-# Use the latest 2.1 version of CircleCI pipeline process engine. See: https://circleci.com/docs/2.0/configuration-reference
 version: 2.1
-# Use a package of configuration called an orb.
-orbs:
-  # Declare a dependency on the welcome-orb
-  welcome: circleci/welcome-orb@0.4.1
-# Orchestrate or schedule a set of jobs
+
+parameters:
+  image-name:
+    type: string
+    default: "udacity-capstone-hello-world"
+  cluster-name:
+    type: string
+    default: "eks-udacity-capstone"
+
+executors:
+  docker:
+    docker:
+      - image: docker:stable
+  nodejs:
+    docker:
+      - image: circleci/node:14.15.0-stretch
+  python:
+    docker:
+      - image: circleci/python:3.9.2
+
 workflows:
-  # Name the workflow "welcome"
-  welcome:
-    # Run the welcome/run job in its own container
+  k8s:
     jobs:
-      - welcome/run
+      - lint-dockerfile
+      - install
+      - test:
+          requires:
+            - install
+      - deploy-dev:
+          requires:
+            - test
+      - deploy-staging:
+          requires:
+            - deploy-dev
+          filters:
+            branches:
+              only:
+                - master
+
+jobs:
+  lint-dockerfile:
+    executor: docker
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Run hadolint on Dockerfile
+          command: docker run --rm --interactive hadolint/hadolint < Dockerfile
+  
+  install:
+    executor: nodejs
+    steps:
+      - checkout
+      - restore_cache:
+          name: Restore Yarn Package Cache
+          keys:
+            - yarn-packages-{{ checksum "yarn.lock" }}
+      - run:
+          name: Install Dependencies
+          command: yarn install --immutable
+      - save_cache:
+          name: Save Yarn Package Cache
+          key: yarn-packages-{{ checksum "yarn.lock" }}
+          paths:
+            - ~/.cache/yarn
+
+  test:
+    executor: nodejs
+    steps:
+      - checkout
+      - restore_cache:
+          name: Restore Yarn Package Cache
+          keys:
+            - yarn-packages-{{ checksum "yarn.lock" }}
+      - run:
+          name: Run tests
+          command: | 
+            yarn install --immutable
+            yarn test
+      - save_cache:
+          name: Save Yarn Package Cache
+          key: yarn-packages-{{ checksum "yarn.lock" }}
+          paths:
+            - ~/.cache/yarn
+
+  deploy-dev:
+    executor: python
+    environment:
+      IMAGE_NAME: << pipeline.parameters.image-name >>
+      CLUSTER_NAME: << pipeline.parameters.cluster-name >>
+    steps:
+      - checkout
+      - setup_remote_docker:
+          version: 19.03.13
+      - run:
+          name: Login to repository and build docker image
+          command: |
+            docker build -t ${DOCKER_ID}/${IMAGE_NAME}:${CIRCLE_SHA1} .
+            echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_ID} --password-stdin
+            docker push ${DOCKER_ID}/${IMAGE_NAME}:${CIRCLE_SHA1}
+      - run:
+          name: Install awscli and envsubst
+          command: |
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            sudo ./aws/install
+            sudo pip3 install envsubst
+      - run:
+          name: Install kubectl
+          command: |
+            curl -o kubectl https://amazon-eks.s3.us-west-2.amazonaws.com/1.18.9/2020-11-02/bin/linux/amd64/kubectl
+            chmod +x ./kubectl
+            sudo mv ./kubectl /usr/local/bin/kubectl
+      - run:
+          name: Prepare K8S templates
+          command: |
+            aws eks update-kubeconfig --name ${CLUSTER_NAME} --region ${AWS_DEFAULT_REGION}
+            echo "Testing k8s configuration"
+            kubectl cluster-info
+            rm -rf .k8s/.generated && mkdir -p .k8s/.generated
+            envsubst < .k8s/templates/dev.yml > .k8s/.generated/dev.yml
+      - run:
+          name: Deploy
+          command: |
+            kubectl -n dev apply -f .k8s/.generated/ --validate=true
+            kubectl -n dev get pods
+
+  deploy-staging:
+    executor: python
+    environment:
+      IMAGE_NAME: << pipeline.parameters.image-name >>
+      CLUSTER_NAME: << pipeline.parameters.cluster-name >>
+    steps:
+      - checkout
+      - setup_remote_docker:
+          version: 19.03.13
+      - run:
+          name: Install NodeJs
+          command: |
+            curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+            sudo apt-get install -y nodejs
+      - run:
+          name: Login to repository and build docker image
+          command: |
+            IMAGE_TAG=$(node -p "require('./package.json').version")
+            docker build -t ${DOCKER_ID}/${IMAGE_NAME}:${IMAGE_TAG} .
+            docker tag ${DOCKER_ID}/${IMAGE_NAME}:${IMAGE_TAG} ${DOCKER_ID}/${IMAGE_NAME}:latest
+            echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_ID} --password-stdin
+            docker push ${DOCKER_ID}/${IMAGE_NAME}:${IMAGE_TAG}
+            docker push ${DOCKER_ID}/${IMAGE_NAME}:latest
+      - run:
+          name: Install awscli and envsubst
+          command: |
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            sudo ./aws/install
+            sudo pip3 install envsubst
+      - run:
+          name: Install kubectl
+          command: |
+            curl -o kubectl https://amazon-eks.s3.us-west-2.amazonaws.com/1.18.9/2020-11-02/bin/linux/amd64/kubectl
+            chmod +x ./kubectl
+            sudo mv ./kubectl /usr/local/bin/kubectl
+      - run:
+          name: Prepare K8S templates
+          command: |
+            aws eks update-kubeconfig --name ${CLUSTER_NAME} --region ${AWS_DEFAULT_REGION}
+            echo "Testing k8s configuration"
+            kubectl cluster-info
+            export IMAGE_TAG=$(node -p "require('./package.json').version")
+            rm -rf .k8s/.generated && mkdir -p .k8s/.generated
+            envsubst < .k8s/templates/staging.yml > .k8s/.generated/staging.yml
+      - run:
+          name: Deploy
+          command: |
+            kubectl -n staging apply -f .k8s/.generated/ --validate=true
+            kubectl -n staging get pods

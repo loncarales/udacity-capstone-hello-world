@@ -1,0 +1,56 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: staging
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: udacity-capstone-hello-world
+    environment: dev
+    tier: frontend
+  name: udacity-capstone-hello-world
+  namespace: staging
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: udacity-capstone-hello-world
+      environment: dev
+      tier: frontend
+  template:
+    metadata:
+      labels:
+        app: udacity-capstone-hello-world
+        environment: dev
+        tier: frontend
+    spec:
+      containers:
+      - image: ${DOCKER_ID}/${IMAGE_NAME}:${IMAGE_TAG}
+        name: udacity-capstone-hello-world
+        ports:
+          - containerPort: 8080
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  labels:
+    app: udacity-capstone-hello-world
+    environment: dev
+    tier: frontend
+  name: udacity-capstone-hello-world
+  namespace: staging
+spec:
+  type: LoadBalancer
+  selector:
+    app: udacity-capstone-hello-world
+    environment: dev
+    tier: frontend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080

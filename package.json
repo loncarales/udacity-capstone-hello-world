@@ -4,7 +4,8 @@
   "description": "A sample Node.js app using Express 4",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "mocha"
   },
   "repository": "git@github.com:loncarales/udacity-capstone-hello-world.git",
   "author": "Ales Loncar <ales.loncar@gmail.com>",
@@ -12,5 +13,10 @@
   "private": false,
   "dependencies": {
     "express": "^4.17.1"
+  },
+  "devDependencies": {
+    "chai": "^4.3.4",
+    "chai-http": "^4.3.0",
+    "mocha": "^8.3.2"
   }
 }
