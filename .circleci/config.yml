@@ -96,9 +96,9 @@ jobs:
       - run:
           name: Login to repository and build docker image
           command: |
-            docker build -t ${DOCKER_ID}/${IMAGE_NAME}:${CIRCLE_BRANCH}-${CIRCLE_BUILD_NUM} .
+            docker build -t ${DOCKER_ID}/${IMAGE_NAME}:${CIRCLE_SHA1} .
             echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_ID} --password-stdin
-            docker push ${DOCKER_ID}/${IMAGE_NAME}:${CIRCLE_BRANCH}-${CIRCLE_BUILD_NUM}
+            docker push ${DOCKER_ID}/${IMAGE_NAME}:${CIRCLE_SHA1}
       - run:
           name: Install awscli and envsubst
           command: |
