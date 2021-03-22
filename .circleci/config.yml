@@ -6,7 +6,7 @@ parameters:
     default: "udacity-capstone-hello-world"
   cluster-name:
     type: string
-    default: "eks-udacity-capstone-dev-kOJ7"
+    default: "eks-udacity-capstone-dev"
 
 executors:
   docker:
@@ -24,12 +24,15 @@ workflows:
     jobs:
       - lint-dockerfile
       - install
-      - build-push-image:
+      - test:
           requires:
             - install
-      - deploy-dev:
-          requires:
-            - build-push-image
+      # - build-push-image:
+      #     requires:
+      #       - install
+      # - deploy-dev:
+      #     requires:
+      #       - test
       #- deploy-staging:
           # filters:
           #   branches:
@@ -48,6 +51,25 @@ jobs:
       - run:
           name: Install Dependencies
           command: yarn install --immutable
+      - save_cache:
+          name: Save Yarn Package Cache
+          key: yarn-packages-{{ checksum "yarn.lock" }}
+          paths:
+            - ~/.cache/yarn
+
+  test:
+    executor: nodejs
+    steps:
+      - checkout
+      - restore_cache:
+          name: Restore Yarn Package Cache
+          keys:
+            - yarn-packages-{{ checksum "yarn.lock" }}
+      - run:
+          name: Run tests
+          command: | 
+            yarn install --immutable
+            yarn test
       - save_cache:
           name: Save Yarn Package Cache
           key: yarn-packages-{{ checksum "yarn.lock" }}
