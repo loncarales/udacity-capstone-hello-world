@@ -13,7 +13,7 @@ describe('Test Web Server', () => {
                 .get("/")
                 .end((err, response) => {
                     response.should.have.status(200);
-                    response.text.should.be.eq("Hello World, my name is Aleš.");
+                    response.text.should.be.eq('<span style="color:green">Hello World, My name is Aleš. I am now Green.<span>');
                 done();
                 });
         });

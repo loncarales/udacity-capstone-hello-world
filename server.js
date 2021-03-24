@@ -4,7 +4,7 @@ const port = 8080
 
 app.get('/', (req, res) => {
     req.is('text/html')
-    res.send('Hello World, my name is Aleš.')
+    res.send('<span style="color:green">Hello World, My name is Aleš. I am now Green.<span>')
 })
 
 module.exports =  app.listen(port, () => {
