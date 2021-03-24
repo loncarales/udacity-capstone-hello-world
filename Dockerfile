@@ -1,4 +1,4 @@
-FROM node:14.15.0-stretch
+FROM node
 
 LABEL version="1.0.0" \
     description="A sample Node.js app using Express 4" \
@@ -18,7 +18,7 @@ RUN yarn install
 COPY . .
 
 # Expose the xpress port
-EXPOSE 8080
+EXPOSE 80000
 
 # Run this command when container is started
 CMD [ "node", "server.js" ]
