@@ -82,11 +82,11 @@ jobs:
             yarn install --immutable
             yarn test
           environment:
-            MOCHA_FILE: ~/junit/test-results.xml
+            MOCHA_FILE: /tmp/junit/test-results.xml
       - store_test_results:
-          path: ~/junit
+          path: /tmp/junit
       - store_artifacts:
-          path: ~/junit
+          path: /tmp/junit
       - save_cache:
           name: Save Yarn Package Cache
           key: yarn-packages-{{ checksum "yarn.lock" }}
