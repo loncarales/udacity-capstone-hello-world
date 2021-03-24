@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "mocha"
+    "test": "mocha test --reporter mocha-junit-reporter"
   },
   "repository": "git@github.com:loncarales/udacity-capstone-hello-world.git",
   "author": "Ales Loncar <ales.loncar@gmail.com>",
@@ -17,6 +17,7 @@
   "devDependencies": {
     "chai": "^4.3.4",
     "chai-http": "^4.3.0",
-    "mocha": "^8.3.2"
+    "mocha": "^8.3.2",
+    "mocha-junit-reporter": "^2.0.0"
   }
 }

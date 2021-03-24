@@ -69,6 +69,8 @@ jobs:
 
   test:
     executor: nodejs
+    environment:
+      MOCHA_FILE: ~/junit/test-results.xml
     steps:
       - checkout
       - restore_cache:
@@ -77,9 +79,14 @@ jobs:
             - yarn-packages-{{ checksum "yarn.lock" }}
       - run:
           name: Run tests
-          command: | 
+          command: |
+            mkdir ~/junit
             yarn install --immutable
             yarn test
+      - store_test_results:
+          path: ~/junit
+      - store_artifacts:
+          path: ~/junit
       - save_cache:
           name: Save Yarn Package Cache
           key: yarn-packages-{{ checksum "yarn.lock" }}
