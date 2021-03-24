@@ -22,14 +22,16 @@ executors:
 workflows:
   k8s:
     jobs:
-      - lint-dockerfile
       - install
       - test:
           requires:
             - install
-      - deploy-dev:
+      - lint-dockerfile:
           requires:
             - test
+      - deploy-dev:
+          requires:
+            - lint-dockerfile
       - deploy-staging:
           requires:
             - deploy-dev
