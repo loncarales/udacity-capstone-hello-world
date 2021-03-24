@@ -32,6 +32,12 @@ workflows:
       - deploy-dev:
           requires:
             - lint-dockerfile
+          filters:
+            branches:
+              only:
+                - master
+                - /feature\/.*/
+                - /fix\/.*/
       - deploy-staging:
           requires:
             - deploy-dev
