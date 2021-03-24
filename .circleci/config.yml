@@ -69,8 +69,6 @@ jobs:
 
   test:
     executor: nodejs
-    environment:
-      MOCHA_FILE: ~/junit/test-results.xml
     steps:
       - checkout
       - restore_cache:
@@ -83,6 +81,8 @@ jobs:
             mkdir ~/junit
             yarn install --immutable
             yarn test
+          environment:
+            MOCHA_FILE: ~/junit/test-results.xml
       - store_test_results:
           path: ~/junit
       - store_artifacts:
