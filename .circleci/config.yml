@@ -6,7 +6,7 @@ parameters:
     default: "udacity-capstone-hello-world"
   cluster-name:
     type: string
-    default: "eks-udacity-capstone-u9Ck"
+    default: "eks-udacity-capstone-iuSw"
 
 executors:
   docker:
