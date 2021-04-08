@@ -1,4 +1,4 @@
-FROM node:14.15.0-stretch
+FROM node:14.16.1-stretch
 
 LABEL version="1.0.0" \
     description="A sample Node.js app using Express 4" \
